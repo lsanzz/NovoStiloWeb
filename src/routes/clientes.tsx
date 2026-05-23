@@ -109,7 +109,6 @@ function ClientesPage() {
           <div><div className="text-xs text-muted-foreground">Telefone</div>{client.phone}</div>
           <div><div className="text-xs text-muted-foreground">E-mail</div>{client.email || "—"}</div>
         </div>
-        {client.birthday && <div><div className="text-xs text-muted-foreground">Nascimento</div>{client.birthday}</div>}
         {client.notes && <div><div className="text-xs text-muted-foreground">Observações</div>{client.notes}</div>}
         <div>
           <div className="font-medium mb-2">Atendimentos ({history.length})</div>
@@ -138,7 +137,6 @@ function ClientForm({ client, onClose }: { client: Client | null; onClose: () =>
   const [name, setName] = useState(client?.name ?? "");
   const [phone, setPhone] = useState(client?.phone ?? "");
   const [email, setEmail] = useState(client?.email ?? "");
-  const [birthday, setBirthday] = useState(client?.birthday ?? "");
   const [gender, setGender] = useState<Gender | "">(client?.gender ?? "");
   const [notes, setNotes] = useState(client?.notes ?? "");
 
@@ -149,7 +147,6 @@ function ClientForm({ client, onClose }: { client: Client | null; onClose: () =>
       name: name.trim(),
       phone: phone.trim(),
       email: email.trim() || undefined,
-      birthday: birthday || undefined,
       gender: gender || undefined,
       notes: notes.trim() || undefined,
     };
@@ -166,17 +163,14 @@ function ClientForm({ client, onClose }: { client: Client | null; onClose: () =>
           <Field label="Telefone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} required /></Field>
           <Field label="E-mail"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Nascimento"><Input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></Field>
-          <Field label="Perfil">
-            <Select value={gender} onChange={(e) => setGender(e.target.value as Gender)}>
-              <option value="">—</option>
-              <option value="masculino">Masculino</option>
-              <option value="feminino">Feminino</option>
-              <option value="unissex">Outro</option>
-            </Select>
-          </Field>
-        </div>
+        <Field label="Perfil">
+          <Select value={gender} onChange={(e) => setGender(e.target.value as Gender)}>
+            <option value="">—</option>
+            <option value="masculino">Masculino</option>
+            <option value="feminino">Feminino</option>
+            <option value="unissex">Outro</option>
+          </Select>
+        </Field>
         <Field label="Observações"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
         <div className="flex justify-between gap-2 pt-2">
           {client ? (
