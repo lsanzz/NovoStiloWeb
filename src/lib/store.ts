@@ -4,6 +4,10 @@
 import { useSyncExternalStore } from "react";
 
 import { isSupabaseConfigured, supabase } from "./supabase";
+import {
+  loadStateFromSupabaseTables,
+  saveStateToSupabaseTables,
+} from "./supabaseTables";
 
 export type Gender = "masculino" | "feminino" | "unissex";
 export type AppointmentStatus =
@@ -112,8 +116,6 @@ export interface State {
 }
 
 const KEY = "novo-stilo-state-v1";
-const SUPABASE_TABLE = "novo_stilo_state";
-const SUPABASE_ROW_ID = "salao-novo-stilo";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 export type SupabaseSyncStatus = "local" | "conectando" | "conectado" | "salvando" | "erro";
@@ -230,27 +232,28 @@ let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 const saveToSupabase = async () => {
   if (!supabase || !supabaseReady || syncingFromRemote) return;
 
-  setSyncState({ status: "salvando", message: "Salvando alterações no Supabase..." });
-
-  const { error } = await supabase.from(SUPABASE_TABLE).upsert({
-    id: SUPABASE_ROW_ID,
-    data: state,
-    updated_at: new Date().toISOString(),
+  setSyncState({
+    status: "salvando",
+    message: "Salvando alterações nas tabelas do Supabase...",
   });
 
-  if (error) {
+  try {
+    await saveStateToSupabaseTables(state);
+
+    setSyncState({
+      status: "conectado",
+      message: "Dados sincronizados nas tabelas do Supabase.",
+      lastSync: new Date().toISOString(),
+    });
+  } catch (error) {
     setSyncState({
       status: "erro",
-      message: `Erro ao salvar no Supabase: ${error.message}`,
+      message:
+        error instanceof Error
+          ? `Erro ao salvar no Supabase: ${error.message}`
+          : "Erro desconhecido ao salvar no Supabase.",
     });
-    return;
   }
-
-  setSyncState({
-    status: "conectado",
-    message: "Dados sincronizados com o Supabase.",
-    lastSync: new Date().toISOString(),
-  });
 };
 
 const scheduleSupabaseSave = () => {
@@ -294,41 +297,29 @@ export const initSupabaseSync = async () => {
     message: "Conectando ao Supabase...",
   });
 
-  const { data, error } = await supabase
-    .from(SUPABASE_TABLE)
-    .select("data")
-    .eq("id", SUPABASE_ROW_ID)
-    .maybeSingle();
+try {
+  syncingFromRemote = true;
 
-  if (error) {
-    setSyncState({
-      status: "erro",
-      message: `Não foi possível carregar dados do Supabase: ${error.message}`,
-    });
-    return syncState;
-  }
+  const remoteState = await loadStateFromSupabaseTables(state);
+  state = normalizeState(remoteState);
 
-  if (data?.data) {
-    syncingFromRemote = true;
-    state = normalizeState(data.data as State);
-    saveLocal();
-    notify();
-    syncingFromRemote = false;
-  } else {
-    const { error: insertError } = await supabase.from(SUPABASE_TABLE).insert({
-      id: SUPABASE_ROW_ID,
-      data: state,
-      updated_at: new Date().toISOString(),
-    });
+  saveLocal();
+  notify();
 
-    if (insertError) {
-      setSyncState({
-        status: "erro",
-        message: `Não foi possível criar o registro inicial no Supabase: ${insertError.message}`,
-      });
-      return syncState;
-    }
-  }
+  syncingFromRemote = false;
+} catch (error) {
+  syncingFromRemote = false;
+
+  setSyncState({
+    status: "erro",
+    message:
+      error instanceof Error
+        ? `Não foi possível carregar as tabelas do Supabase: ${error.message}`
+        : "Erro desconhecido ao carregar as tabelas do Supabase.",
+  });
+
+  return syncState;
+}
 
   supabaseReady = true;
   setSyncState({
