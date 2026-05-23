@@ -28,12 +28,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-@"
-node_modules
-dist
+# Variáveis de ambiente
 .env
 .env.local
-.DS_Store
-.vscode
-"@ | Out-File -Encoding utf8 .gitignore
+.env.*.local
+!.env.example

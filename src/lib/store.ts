@@ -3,6 +3,8 @@
 
 import { useSyncExternalStore } from "react";
 
+import { isSupabaseConfigured, supabase } from "./supabase";
+
 export type Gender = "masculino" | "feminino" | "unissex";
 export type AppointmentStatus =
   | "agendado"
@@ -110,7 +112,37 @@ export interface State {
 }
 
 const KEY = "novo-stilo-state-v1";
+const SUPABASE_TABLE = "novo_stilo_state";
+const SUPABASE_ROW_ID = "salao-novo-stilo";
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+export type SupabaseSyncStatus = "local" | "conectando" | "conectado" | "salvando" | "erro";
+
+export interface SupabaseSyncState {
+  configured: boolean;
+  status: SupabaseSyncStatus;
+  message: string;
+  lastSync?: string;
+}
+
+let syncState: SupabaseSyncState = {
+  configured: isSupabaseConfigured,
+  status: isSupabaseConfigured ? "conectando" : "local",
+  message: isSupabaseConfigured
+    ? "Preparando conexão com o Supabase."
+    : "Rodando em modo local. Configure o .env.local para sincronizar com o Supabase.",
+};
+
+const syncListeners = new Set<() => void>();
+const setSyncState = (patch: Partial<SupabaseSyncState>) => {
+  syncState = { ...syncState, ...patch };
+  syncListeners.forEach((listener) => listener());
+};
+
+const subscribeSync = (listener: () => void) => {
+  syncListeners.add(listener);
+  return () => syncListeners.delete(listener);
+};
 
 const seed = (): State => ({
   settings: {
@@ -180,18 +212,131 @@ try {
 }
 
 const listeners = new Set<() => void>();
-const persist = () => {
+
+const saveLocal = () => {
   try {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(KEY, JSON.stringify(state));
     }
   } catch {}
-  listeners.forEach((l) => l());
+};
+
+const notify = () => listeners.forEach((listener) => listener());
+
+let supabaseReady = false;
+let syncingFromRemote = false;
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const saveToSupabase = async () => {
+  if (!supabase || !supabaseReady || syncingFromRemote) return;
+
+  setSyncState({ status: "salvando", message: "Salvando alterações no Supabase..." });
+
+  const { error } = await supabase.from(SUPABASE_TABLE).upsert({
+    id: SUPABASE_ROW_ID,
+    data: state,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    setSyncState({
+      status: "erro",
+      message: `Erro ao salvar no Supabase: ${error.message}`,
+    });
+    return;
+  }
+
+  setSyncState({
+    status: "conectado",
+    message: "Dados sincronizados com o Supabase.",
+    lastSync: new Date().toISOString(),
+  });
+};
+
+const scheduleSupabaseSave = () => {
+  if (!supabase || !supabaseReady || syncingFromRemote) return;
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    saveTimeout = null;
+    void saveToSupabase();
+  }, 450);
+};
+
+const persist = () => {
+  saveLocal();
+  notify();
+  scheduleSupabaseSave();
 };
 
 const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => listeners.delete(l);
+};
+
+let supabaseInitStarted = false;
+
+export const initSupabaseSync = async () => {
+  if (supabaseInitStarted) return syncState;
+  supabaseInitStarted = true;
+
+  if (!supabase) {
+    setSyncState({
+      configured: false,
+      status: "local",
+      message: "Supabase não configurado. O sistema está salvando apenas neste navegador.",
+    });
+    return syncState;
+  }
+
+  setSyncState({
+    configured: true,
+    status: "conectando",
+    message: "Conectando ao Supabase...",
+  });
+
+  const { data, error } = await supabase
+    .from(SUPABASE_TABLE)
+    .select("data")
+    .eq("id", SUPABASE_ROW_ID)
+    .maybeSingle();
+
+  if (error) {
+    setSyncState({
+      status: "erro",
+      message: `Não foi possível carregar dados do Supabase: ${error.message}`,
+    });
+    return syncState;
+  }
+
+  if (data?.data) {
+    syncingFromRemote = true;
+    state = normalizeState(data.data as State);
+    saveLocal();
+    notify();
+    syncingFromRemote = false;
+  } else {
+    const { error: insertError } = await supabase.from(SUPABASE_TABLE).insert({
+      id: SUPABASE_ROW_ID,
+      data: state,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (insertError) {
+      setSyncState({
+        status: "erro",
+        message: `Não foi possível criar o registro inicial no Supabase: ${insertError.message}`,
+      });
+      return syncState;
+    }
+  }
+
+  supabaseReady = true;
+  setSyncState({
+    status: "conectado",
+    message: "Sistema conectado ao Supabase.",
+    lastSync: new Date().toISOString(),
+  });
+  return syncState;
 };
 
 const appointmentRange = (s: State, a: Pick<Appointment, "serviceId" | "start">) => {
@@ -401,6 +546,13 @@ export const useStore = <T,>(selector: (s: State) => T): T =>
     subscribe,
     () => selector(state),
     () => selector(state),
+  );
+
+export const useSupabaseSyncStatus = () =>
+  useSyncExternalStore(
+    subscribeSync,
+    () => syncState,
+    () => syncState,
   );
 
 export const formatBRL = (n: number) =>

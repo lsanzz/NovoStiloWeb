@@ -3,8 +3,8 @@ import {
   LayoutDashboard, CalendarDays, Users, Scissors, UserCog,
   Wallet, Package, BarChart3, Settings, Sparkles, Menu, X,
 } from "lucide-react";
-import { useState } from "react";
-import { useStore } from "@/lib/store";
+import { useEffect, useState } from "react";
+import { initSupabaseSync, useStore, useSupabaseSyncStatus } from "@/lib/store";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -23,6 +23,22 @@ export function AppShell() {
   const path = router.location.pathname;
   const [open, setOpen] = useState(false);
   const salonName = useStore((s) => s.settings.name);
+  const sync = useSupabaseSyncStatus();
+
+  useEffect(() => {
+    void initSupabaseSync();
+  }, []);
+
+  const syncLabel =
+    sync.status === "conectado"
+      ? "Supabase conectado"
+      : sync.status === "salvando"
+        ? "Salvando..."
+        : sync.status === "erro"
+          ? "Erro no Supabase"
+          : sync.status === "conectando"
+            ? "Conectando..."
+            : "Modo local";
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -85,8 +101,22 @@ export function AppShell() {
             <div className="font-display text-xl leading-none">{salonName}</div>
             <div className="text-xs text-muted-foreground hidden sm:block mt-1">Painel administrativo</div>
           </div>
-          <div className="text-sm text-muted-foreground hidden sm:block capitalize">
-            {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+          <div className="hidden sm:flex flex-col items-end gap-1">
+            <div className="text-sm text-muted-foreground capitalize">
+              {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+            </div>
+            <div
+              className={`text-[11px] rounded-full px-2 py-0.5 border ${
+                sync.status === "conectado" || sync.status === "salvando"
+                  ? "border-emerald-500/30 text-emerald-700 bg-emerald-50"
+                  : sync.status === "erro"
+                    ? "border-destructive/30 text-destructive bg-destructive/10"
+                    : "border-border text-muted-foreground bg-muted"
+              }`}
+              title={sync.message}
+            >
+              {syncLabel}
+            </div>
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
