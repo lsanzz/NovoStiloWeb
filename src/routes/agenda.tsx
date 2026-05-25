@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select } from "@/components/ui-kit";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+} from "@/components/ui-kit";
 import {
   Appointment,
   AppointmentStatus,
@@ -16,7 +26,10 @@ import {
 
 export const Route = createFileRoute("/agenda")({ component: AgendaPage });
 
-const STATUS_TONE: Record<AppointmentStatus, "default" | "gold" | "success" | "warning" | "danger" | "muted"> = {
+const STATUS_TONE: Record<
+  AppointmentStatus,
+  "default" | "gold" | "success" | "warning" | "danger" | "muted"
+> = {
   agendado: "default",
   confirmado: "gold",
   aguardando: "warning",
@@ -25,6 +38,7 @@ const STATUS_TONE: Record<AppointmentStatus, "default" | "gold" | "success" | "w
   faltou: "danger",
   cancelado: "muted",
 };
+
 const STATUS_LABEL: Record<AppointmentStatus, string> = {
   agendado: "Agendado",
   confirmado: "Confirmado",
@@ -48,52 +62,93 @@ function AgendaPage() {
 
   const hours = useMemo(() => {
     const arr: number[] = [];
-    for (let h = state.settings.openHour; h < state.settings.closeHour; h++) arr.push(h);
+
+    for (let h = state.settings.openHour; h < state.settings.closeHour; h++) {
+      arr.push(h);
+    }
+
     return arr;
   }, [state.settings.openHour, state.settings.closeHour]);
 
-  const pros = state.professionals.filter((p) => p.active && (!filterPro || p.id === filterPro));
+  const pros = state.professionals.filter(
+    (professional) =>
+      professional.active && (!filterPro || professional.id === filterPro),
+  );
 
   const dayApps = state.appointments
-    .filter((a) => {
-      if (toDateInputValue(new Date(a.start)) !== date) return false;
-      if (filterPro && a.professionalId !== filterPro) return false;
+    .filter((appointment) => {
+      if (toDateInputValue(new Date(appointment.start)) !== date) return false;
+
+      if (filterPro && appointment.professionalId !== filterPro) return false;
+
       if (filterGender) {
-        const s = state.services.find((x) => x.id === a.serviceId);
-        if (s?.gender !== filterGender) return false;
+        const service = state.services.find(
+          (item) => item.id === appointment.serviceId,
+        );
+
+        if (service?.gender !== filterGender) return false;
       }
+
       return true;
     })
-    .sort((a, b) => +new Date(a.start) - +new Date(b.start));
+    .sort(
+      (a, b) => +new Date(a.start) - +new Date(b.start),
+    );
 
-  const activeCount = dayApps.filter((a) => a.status !== "cancelado" && a.status !== "faltou").length;
+  const activeCount = dayApps.filter(
+    (appointment) =>
+      appointment.status !== "cancelado" && appointment.status !== "faltou",
+  ).length;
 
   return (
     <div>
       <PageHeader
         title="Agenda"
-        subtitle={`${activeCount} atendimento${activeCount === 1 ? "" : "s"} no dia selecionado`}
-        action={<Button variant="gold" onClick={() => setOpenNew(true)}>+ Novo agendamento</Button>}
+        subtitle={`${activeCount} atendimento${
+          activeCount === 1 ? "" : "s"
+        } no dia selecionado`}
+        action={
+          <Button variant="gold" onClick={() => setOpenNew(true)}>
+            + Novo agendamento
+          </Button>
+        }
       />
 
       <Card className="p-4 mb-4 flex flex-wrap gap-3 items-end">
         <Field label="Data">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+          />
         </Field>
+
         <Field label="Profissional">
-          <Select value={filterPro} onChange={(e) => setFilterPro(e.target.value)}>
+          <Select
+            value={filterPro}
+            onChange={(event) => setFilterPro(event.target.value)}
+          >
             <option value="">Todos</option>
-            {state.professionals.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {state.professionals.map((professional) => (
+              <option key={professional.id} value={professional.id}>
+                {professional.name}
+              </option>
+            ))}
           </Select>
         </Field>
+
         <Field label="Público">
-          <Select value={filterGender} onChange={(e) => setFilterGender(e.target.value)}>
+          <Select
+            value={filterGender}
+            onChange={(event) => setFilterGender(event.target.value)}
+          >
             <option value="">Todos</option>
             <option value="masculino">Masculino</option>
             <option value="feminino">Feminino</option>
             <option value="unissex">Unissex</option>
           </Select>
         </Field>
+
         {!isWorkDay && (
           <div className="rounded-lg border border-warning/40 bg-warning/15 px-3 py-2 text-sm">
             O salão não atende neste dia.
@@ -102,48 +157,95 @@ function AgendaPage() {
       </Card>
 
       {pros.length === 0 ? (
-        <EmptyState title="Nenhum profissional disponível" hint="Cadastre ou ative profissionais para montar a agenda." />
+        <EmptyState
+          title="Nenhum profissional disponível"
+          hint="Cadastre ou ative profissionais para montar a agenda."
+        />
       ) : (
         <Card className="overflow-x-auto">
           <div className="min-w-[760px]">
-            <div className="grid" style={{ gridTemplateColumns: `86px repeat(${pros.length}, minmax(180px, 1fr))` }}>
-              <div className="p-3 border-b border-r bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">Hora</div>
-              {pros.map((p) => (
-                <div key={p.id} className="p-3 border-b text-sm font-medium flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
-                  {p.name}
+            <div
+              className="grid"
+              style={{
+                gridTemplateColumns: `86px repeat(${pros.length}, minmax(180px, 1fr))`,
+              }}
+            >
+              <div className="p-3 border-b border-r bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
+                Hora
+              </div>
+
+              {pros.map((professional) => (
+                <div
+                  key={professional.id}
+                  className="p-3 border-b text-sm font-medium flex items-center gap-2"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ background: professional.color }}
+                  />
+                  {professional.name}
                 </div>
               ))}
 
-              {hours.map((h) => (
-                <div key={h} className="contents">
-                  <div className="p-2 border-b border-r text-xs text-muted-foreground bg-muted/20">{String(h).padStart(2, "0")}:00</div>
-                  {pros.map((p) => {
-                    const slots = dayApps.filter((a) => {
-                      const d = new Date(a.start);
-                      return a.professionalId === p.id && d.getHours() === h;
+              {hours.map((hour) => (
+                <div key={hour} className="contents">
+                  <div className="p-2 border-b border-r text-xs text-muted-foreground bg-muted/20">
+                    {String(hour).padStart(2, "0")}:00
+                  </div>
+
+                  {pros.map((professional) => {
+                    const slots = dayApps.filter((appointment) => {
+                      const appointmentDate = new Date(appointment.start);
+
+                      return (
+                        appointment.professionalId === professional.id &&
+                        appointmentDate.getHours() === hour
+                      );
                     });
+
                     return (
-                      <div key={p.id + h} className="border-b p-1 min-h-[72px] hover:bg-accent/30 transition-colors space-y-1">
+                      <div
+                        key={professional.id + hour}
+                        className="border-b p-1 min-h-[72px] hover:bg-accent/30 transition-colors space-y-1"
+                      >
                         {slots.map((slot) => {
-                          const client = state.clients.find((c) => c.id === slot.clientId);
-                          const service = state.services.find((s) => s.id === slot.serviceId);
+                          const client = state.clients.find(
+                            (item) => item.id === slot.clientId,
+                          );
+                          const service = state.services.find(
+                            (item) => item.id === slot.serviceId,
+                          );
                           const end = getAppointmentEnd(state, slot);
+
                           return (
                             <button
                               key={slot.id}
                               onClick={() => setEditing(slot)}
                               className="w-full text-left p-2 rounded-md text-xs leading-tight"
-                              style={{ background: p.color + "22", borderLeft: `3px solid ${p.color}` }}
+                              style={{
+                                background: professional.color + "22",
+                                borderLeft: `3px solid ${professional.color}`,
+                              }}
                             >
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-medium truncate">{client?.name ?? "Cliente removido"}</span>
-                                <span className="text-muted-foreground shrink-0">{formatTime(slot.start)}</span>
+                                <span className="font-medium truncate">
+                                  {client?.name ?? "Cliente removido"}
+                                </span>
+                                <span className="text-muted-foreground shrink-0">
+                                  {formatTime(slot.start)}
+                                </span>
                               </div>
+
                               <div className="text-muted-foreground truncate">
-                                {service?.name ?? "Serviço removido"} · até {formatTime(end)}
+                                {service?.name ?? "Serviço removido"} · até{" "}
+                                {formatTime(end)}
                               </div>
-                              <div className="mt-1"><Badge tone={STATUS_TONE[slot.status]}>{STATUS_LABEL[slot.status]}</Badge></div>
+
+                              <div className="mt-1">
+                                <Badge tone={STATUS_TONE[slot.status]}>
+                                  {STATUS_LABEL[slot.status]}
+                                </Badge>
+                              </div>
                             </button>
                           );
                         })}
@@ -157,92 +259,213 @@ function AgendaPage() {
         </Card>
       )}
 
-      {openNew && <NewAppointmentModal date={date} onClose={() => setOpenNew(false)} />}
-      {editing && <EditAppointmentModal appt={editing} onClose={() => setEditing(null)} />}
+      {openNew && (
+        <NewAppointmentModal
+          date={date}
+          onClose={() => setOpenNew(false)}
+          onCreated={(createdDate) => {
+            setDate(createdDate);
+            setOpenNew(false);
+          }}
+        />
+      )}
+
+      {editing && (
+        <EditAppointmentModal
+          appt={editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }
 
-function NewAppointmentModal({ date, onClose }: { date: string; onClose: () => void }) {
+function NewAppointmentModal({
+  date,
+  onClose,
+  onCreated,
+}: {
+  date: string;
+  onClose: () => void;
+  onCreated?: (date: string) => void;
+}) {
   const state = useStore((s) => s);
-  const activeServices = state.services.filter((s) => s.active);
+  const activeServices = state.services.filter((service) => service.active);
   const activeClients = state.clients;
+
   const [clientId, setClientId] = useState(activeClients[0]?.id ?? "");
   const [serviceId, setServiceId] = useState(activeServices[0]?.id ?? "");
   const [professionalId, setProfessionalId] = useState("");
-  const [time, setTime] = useState(`${String(state.settings.openHour).padStart(2, "0")}:00`);
+  const [appointmentDate, setAppointmentDate] = useState(date);
+  const [time, setTime] = useState(
+    `${String(state.settings.openHour).padStart(2, "0")}:00`,
+  );
 
-  const selectedService = state.services.find((s) => s.id === serviceId);
+  const selectedService = state.services.find(
+    (service) => service.id === serviceId,
+  );
+
   const compatiblePros = selectedService
-    ? state.professionals.filter((p) => canProfessionalPerformService(p, selectedService))
+    ? state.professionals.filter((professional) =>
+        canProfessionalPerformService(professional, selectedService),
+      )
     : [];
 
   useEffect(() => {
-    if (!compatiblePros.some((p) => p.id === professionalId)) {
+    if (!compatiblePros.some((professional) => professional.id === professionalId)) {
       setProfessionalId(compatiblePros[0]?.id ?? "");
     }
   }, [compatiblePros, professionalId]);
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!clientId || !serviceId || !professionalId) return;
-    const start = new Date(`${date}T${time}:00`).toISOString();
-    const error = validateAppointment(state, { clientId, serviceId, professionalId, start });
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!clientId || !serviceId || !professionalId || !appointmentDate || !time) {
+      return;
+    }
+
+    const start = new Date(`${appointmentDate}T${time}:00`).toISOString();
+
+    const error = validateAppointment(state, {
+      clientId,
+      serviceId,
+      professionalId,
+      start,
+    });
+
     if (error) {
       alert(error);
       return;
     }
+
     try {
-      store.addAppointment({ clientId, serviceId, professionalId, start });
-      onClose();
+      store.addAppointment({
+        clientId,
+        serviceId,
+        professionalId,
+        start,
+      });
+
+      if (onCreated) {
+        onCreated(appointmentDate);
+      } else {
+        onClose();
+      }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível criar o agendamento.");
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível criar o agendamento.",
+      );
     }
   };
 
-  const disabled = activeClients.length === 0 || activeServices.length === 0 || compatiblePros.length === 0;
+  const disabled =
+    activeClients.length === 0 ||
+    activeServices.length === 0 ||
+    compatiblePros.length === 0;
 
   return (
     <Modal open onClose={onClose} title="Novo agendamento">
       <form onSubmit={submit} className="space-y-4">
         {disabled && (
           <div className="rounded-lg border border-warning/40 bg-warning/15 p-3 text-sm">
-            Cadastre ao menos um cliente, serviço ativo e profissional compatível antes de agendar.
+            Cadastre ao menos um cliente, serviço ativo e profissional compatível
+            antes de agendar.
           </div>
         )}
+
         <Field label="Cliente">
-          <Select value={clientId} onChange={(e) => setClientId(e.target.value)} required disabled={activeClients.length === 0}>
-            {activeClients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          <Select
+            value={clientId}
+            onChange={(event) => setClientId(event.target.value)}
+            required
+            disabled={activeClients.length === 0}
+          >
+            {activeClients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
           </Select>
         </Field>
+
         <Field label="Serviço">
-          <Select value={serviceId} onChange={(e) => setServiceId(e.target.value)} required disabled={activeServices.length === 0}>
-            {activeServices.map((s) => <option key={s.id} value={s.id}>{s.name} · {s.duration}min · {formatBRL(s.price)}</option>)}
+          <Select
+            value={serviceId}
+            onChange={(event) => setServiceId(event.target.value)}
+            required
+            disabled={activeServices.length === 0}
+          >
+            {activeServices.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.name} · {service.duration}min · {formatBRL(service.price)}
+              </option>
+            ))}
           </Select>
         </Field>
+
         <Field label="Profissional">
-          <Select value={professionalId} onChange={(e) => setProfessionalId(e.target.value)} required disabled={compatiblePros.length === 0}>
-            {compatiblePros.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <Select
+            value={professionalId}
+            onChange={(event) => setProfessionalId(event.target.value)}
+            required
+            disabled={compatiblePros.length === 0}
+          >
+            {compatiblePros.map((professional) => (
+              <option key={professional.id} value={professional.id}>
+                {professional.name}
+              </option>
+            ))}
           </Select>
         </Field>
+
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Data"><Input type="date" value={date} disabled /></Field>
-          <Field label="Hora"><Input type="time" value={time} step={900} onChange={(e) => setTime(e.target.value)} /></Field>
+          <Field label="Data">
+            <Input
+              type="date"
+              value={appointmentDate}
+              onChange={(event) => setAppointmentDate(event.target.value)}
+              required
+            />
+          </Field>
+
+          <Field label="Hora">
+            <Input
+              type="time"
+              value={time}
+              step={900}
+              onChange={(event) => setTime(event.target.value)}
+              required
+            />
+          </Field>
         </div>
+
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" variant="gold" disabled={disabled}>Agendar</Button>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+
+          <Button type="submit" variant="gold" disabled={disabled}>
+            Agendar
+          </Button>
         </div>
       </form>
     </Modal>
   );
 }
 
-function EditAppointmentModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {
+function EditAppointmentModal({
+  appt,
+  onClose,
+}: {
+  appt: Appointment;
+  onClose: () => void;
+}) {
   const state = useStore((s) => s);
-  const c = state.clients.find((x) => x.id === appt.clientId);
-  const s = state.services.find((x) => x.id === appt.serviceId);
-  const p = state.professionals.find((x) => x.id === appt.professionalId);
+  const c = state.clients.find((item) => item.id === appt.clientId);
+  const s = state.services.find((item) => item.id === appt.serviceId);
+  const p = state.professionals.find((item) => item.id === appt.professionalId);
   const end = getAppointmentEnd(state, appt);
 
   const update = (status: AppointmentStatus) => {
@@ -252,24 +475,75 @@ function EditAppointmentModal({ appt, onClose }: { appt: Appointment; onClose: (
   return (
     <Modal open onClose={onClose} title="Detalhes do atendimento">
       <div className="space-y-3 text-sm">
-        <div><span className="text-muted-foreground">Cliente:</span> <span className="font-medium">{c?.name ?? "—"}</span></div>
-        <div><span className="text-muted-foreground">Serviço:</span> {s?.name ?? "—"}</div>
-        <div><span className="text-muted-foreground">Profissional:</span> {p?.name ?? "—"}</div>
-        <div><span className="text-muted-foreground">Horário:</span> {formatTime(appt.start)} até {formatTime(end)}</div>
-        <div><span className="text-muted-foreground">Valor:</span> {s ? formatBRL(s.price) : "—"}</div>
+        <div>
+          <span className="text-muted-foreground">Cliente:</span>{" "}
+          <span className="font-medium">{c?.name ?? "—"}</span>
+        </div>
+
+        <div>
+          <span className="text-muted-foreground">Serviço:</span>{" "}
+          {s?.name ?? "—"}
+        </div>
+
+        <div>
+          <span className="text-muted-foreground">Profissional:</span>{" "}
+          {p?.name ?? "—"}
+        </div>
+
+        <div>
+          <span className="text-muted-foreground">Horário:</span>{" "}
+          {formatTime(appt.start)} até {formatTime(end)}
+        </div>
+
+        <div>
+          <span className="text-muted-foreground">Valor:</span>{" "}
+          {s ? formatBRL(s.price) : "—"}
+        </div>
+
         <div className="pt-2">
           <div className="text-xs text-muted-foreground mb-2">Status</div>
+
           <div className="flex flex-wrap gap-2">
-            {(["agendado", "confirmado", "aguardando", "em_atendimento", "finalizado", "faltou", "cancelado"] as AppointmentStatus[]).map((st) => (
-              <Button key={st} size="sm" variant={appt.status === st ? "primary" : "outline"} onClick={() => update(st)}>
-                {STATUS_LABEL[st]}
+            {(
+              [
+                "agendado",
+                "confirmado",
+                "aguardando",
+                "em_atendimento",
+                "finalizado",
+                "faltou",
+                "cancelado",
+              ] as AppointmentStatus[]
+            ).map((status) => (
+              <Button
+                key={status}
+                size="sm"
+                variant={appt.status === status ? "primary" : "outline"}
+                onClick={() => update(status)}
+              >
+                {STATUS_LABEL[status]}
               </Button>
             ))}
           </div>
         </div>
+
         <div className="flex justify-between pt-4 border-t">
-          <Button variant="danger" size="sm" onClick={() => { if (confirm("Excluir este agendamento?")) { store.removeAppointment(appt.id); onClose(); } }}>Excluir</Button>
-          <Button variant="ghost" onClick={onClose}>Fechar</Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => {
+              if (confirm("Excluir este agendamento?")) {
+                store.removeAppointment(appt.id);
+                onClose();
+              }
+            }}
+          >
+            Excluir
+          </Button>
+
+          <Button variant="ghost" onClick={onClose}>
+            Fechar
+          </Button>
         </div>
       </div>
     </Modal>
