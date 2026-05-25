@@ -26,6 +26,7 @@ export interface Professional {
   specialty: string;
   attendance: Gender;
   commission: number; // %
+  receivesCommission: boolean;
   color: string;
   active: boolean;
 }
@@ -158,9 +159,9 @@ const seed = (): State => ({
     workDays: [1, 2, 3, 4, 5, 6],
   },
   professionals: [
-    { id: uid(), name: "Carlos Silva", phone: "(11) 98888-0001", specialty: "Barbeiro", attendance: "masculino", commission: 40, color: "#b8860b", active: true },
-    { id: uid(), name: "Marina Costa", phone: "(11) 98888-0002", specialty: "Cabeleireira", attendance: "feminino", commission: 45, color: "#c97b63", active: true },
-    { id: uid(), name: "Ana Beatriz", phone: "(11) 98888-0003", specialty: "Colorista", attendance: "unissex", commission: 50, color: "#6b8e9e", active: true },
+    { id: uid(), name: "Carlos Silva", phone: "(11) 98888-0001", specialty: "Barbeiro", attendance: "masculino", commission: 40, receivesCommission: true, color: "#b8860b", active: true },
+    { id: uid(), name: "Marina Costa", phone: "(11) 98888-0002", specialty: "Cabeleireira", attendance: "feminino", commission: 45, receivesCommission: true, color: "#c97b63", active: true },
+    { id: uid(), name: "Ana Beatriz", phone: "(11) 98888-0003", specialty: "Colorista", attendance: "unissex", commission: 50, receivesCommission: true, color: "#6b8e9e", active: true },
   ],
   services: [
     { id: uid(), name: "Corte masculino", category: "Cabelo", gender: "masculino", duration: 40, price: 50, commission: 40, active: true },
@@ -197,7 +198,14 @@ const normalizeState = (loaded: State): State => ({
   ...seed(),
   ...loaded,
   settings: { ...seed().settings, ...(loaded.settings ?? {}) },
-  professionals: (loaded.professionals ?? []).map((p) => ({ ...p, commission: Math.max(0, Number(p.commission || 0)) })),
+  professionals: (loaded.professionals ?? []).map((p) => {
+    const receivesCommission = p.receivesCommission ?? true;
+    return {
+      ...p,
+      receivesCommission,
+      commission: receivesCommission ? Math.max(0, Number(p.commission || 0)) : 0,
+    };
+  }),
   services: (loaded.services ?? []).map((s) => ({ ...s, duration: Math.max(5, Number(s.duration || 30)), price: Math.max(0, Number(s.price || 0)), commission: Math.max(0, Number(s.commission || 0)) })),
   clients: loaded.clients ?? [],
   appointments: loaded.appointments ?? [],
@@ -416,11 +424,37 @@ export const store = {
 
   // professionals
   addProfessional: (p: Omit<Professional, "id">) => {
-    state = { ...state, professionals: [...state.professionals, { ...p, id: uid(), commission: Math.max(0, Number(p.commission || 0)) }] };
+    const receivesCommission = p.receivesCommission ?? true;
+    state = {
+      ...state,
+      professionals: [
+        ...state.professionals,
+        {
+          ...p,
+          id: uid(),
+          receivesCommission,
+          commission: receivesCommission ? Math.max(0, Number(p.commission || 0)) : 0,
+        },
+      ],
+    };
     persist();
   },
   updateProfessional: (id: string, patch: Partial<Professional>) => {
-    state = { ...state, professionals: state.professionals.map((x) => (x.id === id ? { ...x, ...patch, commission: Math.max(0, Number(patch.commission ?? x.commission)) } : x)) };
+    state = {
+      ...state,
+      professionals: state.professionals.map((x) => {
+        if (x.id !== id) return x;
+
+        const receivesCommission = patch.receivesCommission ?? x.receivesCommission ?? true;
+
+        return {
+          ...x,
+          ...patch,
+          receivesCommission,
+          commission: receivesCommission ? Math.max(0, Number(patch.commission ?? x.commission)) : 0,
+        };
+      }),
+    };
     persist();
   },
   removeProfessional: (id: string) => {

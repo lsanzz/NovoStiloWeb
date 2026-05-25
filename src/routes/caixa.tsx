@@ -28,24 +28,43 @@ function CaixaPage() {
 
   const addService = (id: string) => {
     const s = state.services.find((x) => x.id === id && x.active);
+    const professional = state.professionals.find((p) => p.id === proId);
     if (!s || !proId) return;
-    setItems((it) => [...it, { kind: "service", refId: s.id, name: s.name, price: s.price, quantity: 1, professionalId: proId, commissionPct: s.commission }]);
+
+    const commissionPct = professional?.receivesCommission === false ? 0 : s.commission;
+
+    setItems((it) => [
+      ...it,
+      {
+        kind: "service",
+        refId: s.id,
+        name: s.name,
+        price: s.price,
+        quantity: 1,
+        professionalId: proId,
+        commissionPct,
+      },
+    ]);
   };
 
   const addProduct = (id: string) => {
     const p = state.products.find((x) => x.id === id && x.active);
+    const professional = state.professionals.find((professional) => professional.id === proId);
     if (!p || !proId) return;
     const already = productQtyInCart.get(p.id) ?? 0;
     if (p.stock <= already) {
       alert(`Estoque insuficiente para ${p.name}.`);
       return;
     }
+
+    const commissionPct = professional?.receivesCommission === false ? 0 : 10;
+
     setItems((current) => {
       const index = current.findIndex((it) => it.kind === "product" && it.refId === p.id && it.professionalId === proId);
       if (index >= 0) {
         return current.map((it, i) => i === index ? { ...it, quantity: it.quantity + 1 } : it);
       }
-      return [...current, { kind: "product", refId: p.id, name: p.name, price: p.price, quantity: 1, professionalId: proId, commissionPct: 10 }];
+      return [...current, { kind: "product", refId: p.id, name: p.name, price: p.price, quantity: 1, professionalId: proId, commissionPct }];
     });
   };
 

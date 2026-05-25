@@ -5,6 +5,11 @@ import { Gender, Service, formatBRL, store, useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/servicos")({ component: ServicosPage });
 
+const parseNumber = (value: string, fallback = 0) => {
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 function ServicosPage() {
   const list = useStore((s) => s.services);
   const [filter, setFilter] = useState<string>("");
@@ -70,31 +75,40 @@ function ServicosPage() {
 }
 
 function ServiceForm({ svc, onClose }: { svc: Service | null; onClose: () => void }) {
-  const [f, setF] = useState<Omit<Service, "id">>({
-    name: svc?.name ?? "",
-    category: svc?.category ?? "Cabelo",
-    gender: svc?.gender ?? "unissex",
-    duration: svc?.duration ?? 30,
-    price: svc?.price ?? 50,
-    commission: svc?.commission ?? 40,
-    active: svc?.active ?? true,
-  });
+  const [name, setName] = useState(svc?.name ?? "");
+  const [category, setCategory] = useState(svc?.category ?? "Cabelo");
+  const [gender, setGender] = useState<Gender>(svc?.gender ?? "unissex");
+  const [duration, setDuration] = useState(svc?.duration != null ? String(svc.duration) : "30");
+  const [price, setPrice] = useState(svc?.price != null ? String(svc.price) : "50");
+  const [commission, setCommission] = useState(svc?.commission != null ? String(svc.commission) : "40");
+  const [active, setActive] = useState(svc?.active ?? true);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (svc) store.updateService(svc.id, f);
-    else store.addService(f);
+
+    const data: Omit<Service, "id"> = {
+      name: name.trim(),
+      category: category.trim(),
+      gender,
+      duration: Math.max(5, parseNumber(duration, 30)),
+      price: Math.max(0, parseNumber(price, 0)),
+      commission: Math.max(0, parseNumber(commission, 0)),
+      active,
+    };
+
+    if (svc) store.updateService(svc.id, data);
+    else store.addService(data);
     onClose();
   };
 
   return (
     <Modal open onClose={onClose} title={svc ? "Editar serviço" : "Novo serviço"}>
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Nome"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></Field>
+        <Field label="Nome"><Input value={name} onChange={(e) => setName(e.target.value)} required /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Categoria"><Input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} /></Field>
+          <Field label="Categoria"><Input value={category} onChange={(e) => setCategory(e.target.value)} /></Field>
           <Field label="Público">
-            <Select value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value as Gender })}>
+            <Select value={gender} onChange={(e) => setGender(e.target.value as Gender)}>
               <option value="masculino">Masculino</option>
               <option value="feminino">Feminino</option>
               <option value="unissex">Unissex</option>
@@ -102,12 +116,18 @@ function ServiceForm({ svc, onClose }: { svc: Service | null; onClose: () => voi
           </Field>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <Field label="Duração (min)"><Input type="number" value={f.duration} onChange={(e) => setF({ ...f, duration: +e.target.value })} /></Field>
-          <Field label="Valor (R$)"><Input type="number" step="0.01" value={f.price} onChange={(e) => setF({ ...f, price: +e.target.value })} /></Field>
-          <Field label="Comissão (%)"><Input type="number" value={f.commission} onChange={(e) => setF({ ...f, commission: +e.target.value })} /></Field>
+          <Field label="Duração (min)">
+            <Input type="text" inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)} />
+          </Field>
+          <Field label="Valor (R$)">
+            <Input type="text" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+          </Field>
+          <Field label="Comissão (%)">
+            <Input type="text" inputMode="decimal" value={commission} placeholder="Ex: 40" onChange={(e) => setCommission(e.target.value)} />
+          </Field>
         </div>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Serviço ativo
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Serviço ativo
         </label>
         <div className="flex justify-between pt-2">
           {svc ? <Button type="button" variant="danger" onClick={() => { if (confirm("Excluir este serviço?")) { store.removeService(svc.id); onClose(); } }}>Excluir</Button> : <span />}

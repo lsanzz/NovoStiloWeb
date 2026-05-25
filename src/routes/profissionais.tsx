@@ -7,6 +7,8 @@ export const Route = createFileRoute("/profissionais")({ component: ProfPage });
 
 const COLORS = ["#b8860b", "#c97b63", "#6b8e9e", "#7a6f9b", "#5a8a5c", "#a06262"];
 
+const parsePercent = (value: string) => Math.max(0, Number(value.replace(",", ".") || 0));
+
 function ProfPage() {
   const professionals = useStore((s) => s.professionals);
   const list = [...professionals].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
@@ -36,7 +38,7 @@ function ProfPage() {
             <div className="text-sm space-y-1 text-muted-foreground">
               <div>📱 {p.phone || "—"}</div>
               <div>✂️ Atende: {p.attendance}</div>
-              <div>💰 Comissão: {p.commission}%</div>
+              <div>💰 Comissão: {p.receivesCommission === false ? "Sem comissão (dono)" : `${p.commission}%`}</div>
             </div>
             <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => { setEditing(p); setOpen(true); }}>Editar</Button>
           </Card>
@@ -52,13 +54,25 @@ function ProForm({ pro, onClose }: { pro: Professional | null; onClose: () => vo
   const [phone, setPhone] = useState(pro?.phone ?? "");
   const [specialty, setSpecialty] = useState(pro?.specialty ?? "");
   const [attendance, setAttendance] = useState<Gender>(pro?.attendance ?? "unissex");
-  const [commission, setCommission] = useState(pro?.commission ?? 40);
+  const [receivesCommission, setReceivesCommission] = useState(pro?.receivesCommission ?? true);
+  const [commission, setCommission] = useState(pro?.commission != null ? String(pro.commission) : "40");
   const [color, setColor] = useState(pro?.color ?? COLORS[0]);
   const [active, setActive] = useState(pro?.active ?? true);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { name, phone, specialty, attendance, commission, color, active };
+
+    const data = {
+      name: name.trim(),
+      phone: phone.trim() || undefined,
+      specialty: specialty.trim(),
+      attendance,
+      receivesCommission,
+      commission: receivesCommission ? parsePercent(commission) : 0,
+      color,
+      active,
+    };
+
     if (pro) store.updateProfessional(pro.id, data);
     else store.addProfessional(data);
     onClose();
@@ -80,8 +94,30 @@ function ProForm({ pro, onClose }: { pro: Professional | null; onClose: () => vo
               <option value="unissex">Ambos</option>
             </Select>
           </Field>
-          <Field label="Comissão padrão (%)"><Input type="number" value={commission} onChange={(e) => setCommission(+e.target.value)} /></Field>
+          <Field label="Recebe comissão?">
+            <Select
+              value={receivesCommission ? "sim" : "nao"}
+              onChange={(e) => {
+                const value = e.target.value === "sim";
+                setReceivesCommission(value);
+                if (!value) setCommission("");
+              }}
+            >
+              <option value="sim">Sim</option>
+              <option value="nao">Não, é dono</option>
+            </Select>
+          </Field>
         </div>
+        <Field label="Comissão padrão (%)">
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={commission}
+            disabled={!receivesCommission}
+            placeholder={receivesCommission ? "Ex: 40" : "Sem comissão"}
+            onChange={(e) => setCommission(e.target.value)}
+          />
+        </Field>
         <Field label="Cor na agenda">
           <div className="flex gap-2">
             {COLORS.map((c) => (
