@@ -104,7 +104,7 @@ function ProForm({ pro, onClose }: { pro: Professional | null; onClose: () => vo
               }}
             >
               <option value="sim">Sim</option>
-              <option value="nao">Não, é dono</option>
+              <option value="nao">Não</option>
             </Select>
           </Field>
         </div>
