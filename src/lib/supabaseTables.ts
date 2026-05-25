@@ -17,7 +17,7 @@ const clean = <T extends Record<string, unknown>>(obj: T) =>
   Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined)) as T;
 
 const listOrFallback = <T>(data: T[] | null, fallback: T[]) => {
-  if (!data || data.length === 0) return fallback;
+  if (!data) return fallback;
   return data;
 };
 
